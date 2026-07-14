@@ -126,6 +126,12 @@ Build the image:
 docker build -t vokalist .
 ```
 
+If you previously built an older image and see a Python, NumPy, or Torch import crash, rebuild without cache:
+
+```powershell
+docker build --no-cache -t vokalist .
+```
+
 Run with GPU:
 
 ```powershell
@@ -183,3 +189,9 @@ The splitter uses headings for chunk names, but only sends narration body text t
 - If generation is too slow, confirm `--device cuda` and `torch.cuda.is_available()`.
 - If the app says the reference is missing, add `voice_profile/reference.wav`.
 - If Docker cannot see the GPU, install or repair NVIDIA Container Toolkit.
+- If the container exits immediately, run quick diagnostics:
+
+```powershell
+docker run --gpus all --rm vokalist python3 -c "import torch; print(torch.cuda.is_available())"
+docker run --gpus all --rm vokalist python3 -c "import gradio, chatterbox, torchaudio; print('imports ok')"
+```
