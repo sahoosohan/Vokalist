@@ -13,7 +13,7 @@ Vokalist is a local AI narration tool for scene-based video scripts. It splits a
 
 ## Requirements
 
-- Windows, Linux, or Docker host.
+- Windows or Linux host.
 - Python 3.10+.
 - NVIDIA GPU strongly recommended.
 - CUDA-capable PyTorch environment for practical generation speed.
@@ -34,7 +34,6 @@ Vokalist/
 ├── splitter.py            # Script parsing and narration cleanup
 ├── stitcher.py            # WAV stitching
 ├── requirements.txt       # Python dependencies
-├── Dockerfile             # CUDA container image
 ├── scripts/               # Input scripts
 ├── voice_profile/         # Voice reference audio
 └── output/                # Generated chunks, scene WAVs, final WAVs
@@ -116,44 +115,9 @@ For your current workflow, use:
 storyteller_energetic
 ```
 
-## Docker Deployment
-
-Docker is useful when you want a repeatable deployment environment. GPU generation requires NVIDIA Container Toolkit on the host.
-
-Build the image:
-
-```powershell
-docker build -t vokalist .
-```
-
-If you previously built an older image and see a Python, NumPy, or Torch import crash, rebuild without cache:
-
-```powershell
-docker build --no-cache -t vokalist .
-```
-
-Run with GPU:
-
-```powershell
-docker run --gpus all --rm -p 7860:7860 -v ${PWD}\scripts:/app/scripts -v ${PWD}\voice_profile:/app/voice_profile -v ${PWD}\output:/app/output vokalist
-```
-
-Open:
-
-```text
-http://localhost:7860
-```
-
-CPU-only Docker run is possible, but slow:
-
-```powershell
-docker run --rm -p 7860:7860 -v ${PWD}\scripts:/app/scripts -v ${PWD}\voice_profile:/app/voice_profile -v ${PWD}\output:/app/output vokalist
-```
-
 ## Deployment Notes
 
 - The app listens on `127.0.0.1:7860` locally.
-- In Docker, it listens on `0.0.0.0:7860`.
 - You can override host and port with:
 
 ```powershell
@@ -162,9 +126,8 @@ $env:VOKALIST_PORT="7860"
 .\.venv\Scripts\python.exe app.py
 ```
 
-- Keep `voice_profile/reference.wav` mounted or present before generating.
-- Keep `output/` mounted if you want files to persist after a container exits.
-- Do not expose this app publicly without authentication, because it can run expensive local GPU jobs and read/write mounted folders.
+- Keep `voice_profile/reference.wav` present before generating.
+- Do not expose this app publicly without authentication, because it can run expensive local GPU jobs and read/write local folders.
 
 ## Script Format
 
@@ -188,10 +151,3 @@ The splitter uses headings for chunk names, but only sends narration body text t
 - If the voice changes or becomes gibberish, use `storyteller_energetic` or lower `--max-generation-words`.
 - If generation is too slow, confirm `--device cuda` and `torch.cuda.is_available()`.
 - If the app says the reference is missing, add `voice_profile/reference.wav`.
-- If Docker cannot see the GPU, install or repair NVIDIA Container Toolkit.
-- If the container exits immediately, run quick diagnostics:
-
-```powershell
-docker run --gpus all --rm vokalist python3 -c "import torch; print(torch.cuda.is_available())"
-docker run --gpus all --rm vokalist python3 -c "import gradio, chatterbox, torchaudio; print('imports ok')"
-```
