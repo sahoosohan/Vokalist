@@ -8,7 +8,8 @@ Vokalist is a local AI narration tool for scene-based video scripts. It splits a
 - Removes non-spoken script metadata such as headings, timestamps, separators, word count, and runtime notes.
 - Uses `voice_profile/reference.wav` as the default voice reference.
 - Generates numbered scene WAV files.
-- Stitches all scenes into `final_narration.wav`.
+- Stitches all scenes into `final_narration.wav`, ordered by `manifest.json` (falls back to filename sort if the manifest is missing).
+- Resumes automatically: if you rerun the same output folder, already-generated scenes are skipped. Pass `--force` (CLI) or check "Force regenerate" (UI) to redo everything.
 - Provides a Gradio UI with audio preview, final narration download, scene file downloads, and output folder display.
 
 ## Requirements
@@ -30,9 +31,10 @@ voice_profile/reference.wav
 Vokalist/
 ├── app.py                 # Gradio UI
 ├── pipeline.py            # Full split -> generate -> stitch CLI
-├── generator.py           # Chatterbox generation and style presets
+├── generator.py           # Chatterbox Turbo generation and style presets
 ├── splitter.py            # Script parsing and narration cleanup
 ├── stitcher.py            # WAV stitching
+├── utils.py               # Shared device resolution + slug helper
 ├── requirements.txt       # Python dependencies
 ├── scripts/               # Input scripts
 ├── voice_profile/         # Voice reference audio
@@ -103,17 +105,34 @@ output\[video_title]\
 └── manifest.json
 ```
 
+## Resuming / Regenerating
+
+Reruns of `pipeline.py` or the UI against the *same* output folder skip any scene that already has a WAV file in `manifest.json` — handy if generation crashes or you kill it partway through. To force a clean regenerate of every scene:
+
+```powershell
+.\.venv\Scripts\python.exe pipeline.py scripts\my_script.md --output-dir output\my_script --force
+```
+
 ## Style Presets
 
 - `neutral`: stable, plain narration.
 - `storyteller`: warmer and slower, with more deliberate pacing.
 - `storyteller_energetic`: clear but less lazy, with tighter pauses and more forward motion.
+- `storyteller_excited`: widest sampling variety and tightest pacing, for a more human, energetic read. Also nudges punctuation to `!` on sentences that already contain emphatic language ("incredible", "no way", etc.) — it never adds words, just lets existing emphasis come through in the delivery.
 
 For your current workflow, use:
 
 ```text
 storyteller_energetic
 ```
+
+### Making narration sound more human
+
+A few things beyond style choice help avoid a flat, robotic read:
+
+- **Per-line seed variation** (on by default, all presets): each generated line uses a fresh random seed instead of reusing the same one for the whole video. Reusing one seed is a big part of what makes long narration sound identical/robotic line to line. Pass `--seed N` (CLI) or set "Fixed seed" (UI) if you want reproducible output instead — useful for A/B comparing a specific line, at the cost of that flat sameness.
+- **Scene gap jitter**: `--gap-jitter-ms` (CLI) / "Scene gap jitter" (UI) randomly varies each pause by up to that many ms so the pacing isn't metronomically uniform. Try 15-30ms.
+- **`exaggeration` / `cfg_weight`**: `storyteller_excited` sets these for builds of `chatterbox-tts` that support them (the original ChatterboxTTS's emotion-intensity knobs). If your installed Turbo build doesn't support them, they're silently skipped — see Troubleshooting.
 
 ## Deployment Notes
 
@@ -149,5 +168,7 @@ The splitter uses headings for chunk names, but only sends narration body text t
 ## Troubleshooting
 
 - If the voice changes or becomes gibberish, use `storyteller_energetic` or lower `--max-generation-words`.
-- If generation is too slow, confirm `--device cuda` and `torch.cuda.is_available()`.
+- If generation is too slow, confirm `--device cuda` and `torch.cuda.is_available()`. On Apple Silicon, `--device mps` is also supported.
 - If the app says the reference is missing, add `voice_profile/reference.wav`.
+- If a run gets interrupted, just rerun the same command — it resumes from the last completed scene. Use `--force` to start over.
+- `ChatterboxTurboTTS.generate()`'s accepted parameters vary by installed `chatterbox-tts` version (some builds don't support `seed_num`, `exaggeration`, or `cfg_weight`). `generator.py` inspects the installed model's real signature at runtime and only passes params it actually accepts, printing a `Note: ... doesn't accept [...]` line for anything it had to drop — that's informational, not an error.

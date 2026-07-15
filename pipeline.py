@@ -26,7 +26,24 @@ def main() -> None:
     )
     parser.add_argument("--style", default="neutral", choices=sorted(STYLE_PRESETS), help="Narration style preset.")
     parser.add_argument("--gap-ms", type=int, default=400, help="Silence gap between scenes in milliseconds.")
-    parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu"], help="TTS device.")
+    parser.add_argument(
+        "--gap-jitter-ms",
+        type=int,
+        default=0,
+        help="Randomly vary each inter-scene gap by up to this many ms so pacing isn't perfectly uniform.",
+    )
+    parser.add_argument("--device", default="auto", choices=["auto", "cuda", "cpu", "mps"], help="TTS device.")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Regenerate all scenes even if audio already exists in the output dir (default: resume/skip done scenes).",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Fix a specific seed for reproducible output. Omit for natural per-line variation (default).",
+    )
     args = parser.parse_args()
 
     try:
@@ -43,10 +60,12 @@ def main() -> None:
             device=args.device,
             max_generation_words=args.max_generation_words,
             style=args.style,
+            force=args.force,
+            fixed_seed=args.seed,
         )
     except ValueError as exc:
         parser.exit(1, f"Error: {exc}\n")
-    final_path = stitch_wavs(output_dir, gap_ms=args.gap_ms)
+    final_path = stitch_wavs(output_dir, gap_ms=args.gap_ms, gap_jitter_ms=args.gap_jitter_ms)
     print(f"Final narration: {final_path}")
 
 
