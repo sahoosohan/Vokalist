@@ -132,7 +132,7 @@ A few things beyond style choice help avoid a flat, robotic read:
 
 - **Per-line seed variation** (on by default, all presets): each generated line uses a fresh random seed instead of reusing the same one for the whole video. Reusing one seed is a big part of what makes long narration sound identical/robotic line to line. Pass `--seed N` (CLI) or set "Fixed seed" (UI) if you want reproducible output instead — useful for A/B comparing a specific line, at the cost of that flat sameness.
 - **Scene gap jitter**: `--gap-jitter-ms` (CLI) / "Scene gap jitter" (UI) randomly varies each pause by up to that many ms so the pacing isn't metronomically uniform. Try 15-30ms.
-- **`exaggeration` / `cfg_weight`**: `storyteller_excited` sets these for builds of `chatterbox-tts` that support them (the original ChatterboxTTS's emotion-intensity knobs). If your installed Turbo build doesn't support them, they're silently skipped — see Troubleshooting.
+- **Wider sampling on `storyteller_excited`**: higher `temperature`/`top_p`/`top_k` and lower `repetition_penalty` than the other presets — this is the main lever available for expressiveness on Turbo. (`exaggeration`/`cfg_weight` are *not* used: Turbo accepts those kwargs but ignores them entirely — see Troubleshooting.)
 
 ## Deployment Notes
 
@@ -171,4 +171,5 @@ The splitter uses headings for chunk names, but only sends narration body text t
 - If generation is too slow, confirm `--device cuda` and `torch.cuda.is_available()`. On Apple Silicon, `--device mps` is also supported.
 - If the app says the reference is missing, add `voice_profile/reference.wav`.
 - If a run gets interrupted, just rerun the same command — it resumes from the last completed scene. Use `--force` to start over.
-- `ChatterboxTurboTTS.generate()`'s accepted parameters vary by installed `chatterbox-tts` version (some builds don't support `seed_num`, `exaggeration`, or `cfg_weight`). `generator.py` inspects the installed model's real signature at runtime and only passes params it actually accepts, printing a `Note: ... doesn't accept [...]` line for anything it had to drop — that's informational, not an error.
+- `ChatterboxTurboTTS.generate()`'s accepted parameters vary by installed `chatterbox-tts` version (some builds don't support `seed_num` at all and raise `TypeError`). `generator.py` inspects the installed model's real signature at runtime and only passes params it actually accepts, printing a `Note: ... doesn't accept [...]` line for anything it had to drop — that's informational, not an error.
+- If you see `WARNING:chatterbox.tts_turbo:CFG, min_p and exaggeration are not supported by Turbo version and will be ignored` — that's the library itself, not this codebase. Those three params are accepted by Turbo's `generate()` signature but do nothing; `STYLE_PRESETS` no longer sets them, so you shouldn't see this warning anymore. If you do, you're likely on an older cached copy of `generator.py`.

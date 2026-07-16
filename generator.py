@@ -15,13 +15,18 @@ from splitter import SceneChunk, read_script, split_script, title_from_path, wri
 DEFAULT_VOICE_REFERENCE = Path("voice_profile/reference.wav")
 
 
-# NOTE: ChatterboxTurboTTS.generate()'s accepted kwargs vary by installed
-# chatterbox-tts version (e.g. `exaggeration`/`cfg_weight` belong to the
-# original non-Turbo model and some Turbo builds don't support them; the
-# same goes for `seed_num`). These presets list every knob we'd *like* to
-# control; at call time _supported_kwargs() drops whatever the installed
-# model's generate() doesn't actually accept, so a version mismatch
-# degrades gracefully instead of raising a TypeError.
+# NOTE: ChatterboxTurboTTS.generate() accepts `cfg_weight`, `min_p`, and
+# `exaggeration` in its signature (inherited for compatibility with the
+# non-Turbo ChatterboxTTS) but the Turbo model does not implement them --
+# passing them does nothing except trigger a
+# "CFG, min_p and exaggeration are not supported by Turbo version" warning
+# on every single generation call. So they're deliberately left out of
+# these presets. The knobs that actually affect Turbo output are
+# temperature, top_p, top_k, and repetition_penalty.
+#
+# `seed_num` support varies by installed chatterbox-tts version -- some
+# builds don't accept it at all (TypeError), which _supported_kwargs()
+# below detects and drops automatically.
 #
 # "vary_seed": True means a fresh random seed is used per generated line
 # instead of reusing seed_num=0 for everything -- reusing one seed is part
@@ -35,7 +40,6 @@ STYLE_PRESETS = {
         "temperature": 0.65,
         "top_p": 0.9,
         "top_k": 50,
-        "min_p": 0.05,
         "norm_loudness": True,
         "vary_seed": True,
         "max_generation_words": 85,
@@ -47,7 +51,6 @@ STYLE_PRESETS = {
         "temperature": 0.62,
         "top_p": 0.9,
         "top_k": 50,
-        "min_p": 0.05,
         "norm_loudness": True,
         "vary_seed": True,
         "max_generation_words": 70,
@@ -59,7 +62,6 @@ STYLE_PRESETS = {
         "temperature": 0.68,
         "top_p": 0.92,
         "top_k": 60,
-        "min_p": 0.05,
         "norm_loudness": True,
         "vary_seed": True,
         "max_generation_words": 75,
@@ -67,19 +69,15 @@ STYLE_PRESETS = {
         "segment_gap_jitter_ms": 20,
     },
     "storyteller_excited": {
-        # Wider sampling = more vocal variety line-to-line. exaggeration/
-        # cfg_weight only apply if your chatterbox-tts build supports them
-        # (they're the original ChatterboxTTS's emotion-intensity knobs);
-        # harmless no-ops otherwise since _supported_kwargs() filters them.
-        "repetition_penalty": 1.18,
-        "temperature": 0.78,
-        "top_p": 0.95,
-        "top_k": 80,
-        "min_p": 0.04,
+        # Wider sampling = more vocal variety line-to-line. This is the
+        # main lever available on Turbo, since exaggeration/cfg_weight
+        # are no-ops (see note above).
+        "repetition_penalty": 1.15,
+        "temperature": 0.82,
+        "top_p": 0.97,
+        "top_k": 90,
         "norm_loudness": True,
         "vary_seed": True,
-        "exaggeration": 0.65,
-        "cfg_weight": 0.4,
         "max_generation_words": 65,
         "segment_gap_ms": 70,
         "segment_gap_jitter_ms": 25,
